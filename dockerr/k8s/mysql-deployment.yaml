@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:latest # Nên sử dụng phiên bản cụ thể thay vì latest trong production (ví dụ: mysql:8.0)
+          env:
+            - name: MYSQL_DATABASE
+              value: docker_presentation
+            - name: MYSQL_ROOT_PASSWORD
+              value: Manh99123 # Nên sử dụng Secret để bảo mật mật khẩu
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-persistent-storage
+              mountPath: /var/lib/mysql # Đây là thư mục mặc định của MySQL để lưu trữ dữ liệu
+      volumes:
+        - name: mysql-persistent-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc

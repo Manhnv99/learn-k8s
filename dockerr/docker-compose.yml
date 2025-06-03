@@ -1,0 +1,35 @@
+version: "3.8"
+services:
+  db:
+    image: mysql
+    container_name: db
+    restart: on-failure
+    environment:
+      MYSQL_DATABASE: docker_presentation
+      MYSQL_ROOT_PASSWORD: Manh99123
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql_db
+    networks:
+      - identity_network
+  be:
+    image: docker_presentation:0.0.1
+    container_name: be
+    restart: on-failure
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://db:3306/docker_presentation
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: Manh99123
+      TZ: Asia/Ho_Chi_Minh
+    networks:
+      - identity_network
+
+networks:
+  identity_network:
+    driver: bridge
+
+volumes:
+  mysql_data:

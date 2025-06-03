@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+spec:
+  capacity:
+    storage: 5Gi # Dung lượng lưu trữ bạn muốn cấp phát
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data/mysql" # Thay đổi đường dẫn này theo thư mục bạn muốn lưu trên host node.
+      # Cẩn thận khi sử dụng HostPath trong môi trường production,
+    # nó chỉ phù hợp cho các môi trường dev/test hoặc single-node.
