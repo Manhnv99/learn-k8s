@@ -1,0 +1,99 @@
+#mysql-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql-deployment
+  labels:
+    app: mysql
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:latest # Nên sử dụng phiên bản cụ thể thay vì latest trong production (ví dụ: mysql:8.0)
+          env:
+            - name: MYSQL_DATABASE
+              value: info_service
+            - name: MYSQL_ROOT_PASSWORD
+              value: Manh99123 # Nên sử dụng Secret để bảo mật mật khẩu
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-persistent-storage # Chỉ định dùng volume nào đã định định nghĩa ở volumes
+              mountPath: /var/lib/mysql # Đây là thư mục sẽ mount thư mực của columns vào thư mục của container MySQL để lưu trữ dữ liệu
+          # Ở đây, bạn đang nói với Kubernetes: "Trong container mysql này, hãy lấy cái volume mà tôi đã gọi là mysql-persistent-storage và gắn nó vào đường dẫn /var/lib/mysql bên trong container."
+          
+      volumes: # Định nghĩa các volumes sẽ được sử dụng trong container
+        - name: mysql-persistent-storage # Đây là tên định danh cho volume này
+          persistentVolumeClaim:
+            claimName: mysql-pvc # Chỉ ra rằng volume này đến từ PVC có tên 'mysql-pvc'
+        # Ở đây, bạn đang nói với Kubernetes: "Tôi có một volume mà tôi muốn gọi là mysql-persistent-storage, và nguồn của volume này là từ một PersistentVolumeClaim có tên mysql-pvc."
+
+---
+#mysql-pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: mysql-pv
+  labels:
+    type: local # Nhãn để phân loại PV, có thể tùy chỉnh
+    app: mysql # Nhãn ứng dụng, có thể tùy chỉnh
+spec:
+  capacity:
+    storage: 1Gi # Dung lượng lưu trữ bạn muốn cấp phát
+  accessModes:
+    - ReadWriteOnce # Chế độ truy cập, có thể là ReadWriteOnce, ReadOnlyMany, hoặc ReadWriteMany
+  volumeMode: Filesystem # Chế độ volume, có thể là Filesystem(Default) hoặc Block
+  persistentVolumeReclaimPolicy: Retain # Chính sách thu hồi, có thể là Retain, Recycle, hoặc Delete
+  # storageClassName: slow # Tên StorageClass nếu bạn muốn sử dụng, có thể bỏ qua nếu không cần
+  hostPath:
+    path: "/mnt/data/mysql" # Thay đổi đường dẫn này theo thư mục bạn muốn lưu trên host node.
+      # Cẩn thận khi sử dụng HostPath trong môi trường production,
+    # nó chỉ phù hợp cho các môi trường dev/test hoặc single-node.
+
+---
+#mysql_pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 1Gi # Đảm bảo dung lượng này nhỏ hơn hoặc bằng dung lượng của PV (nếu có PV tĩnh)
+  # storageClassName: slow # Tên StorageClass nếu bạn muốn sử dụng, có thể bỏ qua nếu không cần
+  selector:
+    matchLabels:
+      app: mysql
+      type: local # Chọn PV dựa trên nhãn, nếu có PV tĩnh với nhãn tương ứng
+      # Nếu không có PV tĩnh, Kubernetes sẽ tự động tạo PV động dựa trên StorageClass mặc định.
+      # PVC sẽ tìm kiếm PV có nhãn phù hợp hết với yêu cầu này.
+    # matchExpressions:
+    #   - { key: tier, operator: In, values: ["database", "frontend"] }
+    #   - { key: env, operator: NotIn, values: ["development"] }
+    #  matchExpressions được sử dụng để lọc PV dựa trên các biểu thức phức tạp hơn, cụ thể sẽ tìm kiếm các PV có nhãn tier và giá trị trong mảng values, hoặc env không nằm trong mảng values.
+
+---
+#mysql_service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-service
+spec:
+  selector:
+    app: mysql
+  ports:
+    - protocol: TCP
+      port: 3306
+      targetPort: 3306
+  type: LoadBalancer # Thay đổi thành LoadBalancer
